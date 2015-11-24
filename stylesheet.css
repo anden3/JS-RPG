@@ -1,0 +1,24 @@
+body {
+    padding: 0;
+    margin: 0;
+}
+
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: black;
+    overflow: scroll;
+}
+
+canvas:not(#map) {
+    background-color: transparent;
+}
+
+#ui {
+    position: fixed;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
