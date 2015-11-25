@@ -7,38 +7,38 @@ var regionSizeY = 10;
 var scalingX = 10;
 var scalingY = 10;
 
-var charX = 500;
-var charY = 200;
-
-var charWidth = 10;
-var charHeight = 10;
-var charStep = 10;
-
-var direction;
-var mobLocations = [];
+var mobAmount = 100;
+var mobs = [];
 
 var canvasInit = function () {
-    var canvasPrefix = ["map", "char", "entity", "ui"];
+    var overFlowCanvases = ["map", "char", "entity", "ui", "largeMap"];
+    var fixedCanvases = ["ui", "largeMap"];
 
-    for (var p = 0; p < canvasPrefix.length; p++) {
-        window[canvasPrefix[p] + "_canvas"] = document.getElementById(canvasPrefix[p]);
-        window[canvasPrefix[p] + "_ctx"] = window[canvasPrefix[p] + "_canvas"].getContext("2d");
+    for (var c = 0; c < overFlowCanvases.length; c++) {
+        window[overFlowCanvases[c] + "_canvas"] = document.getElementById(overFlowCanvases[c]);
+        window[overFlowCanvases[c] + "_ctx"] = window[overFlowCanvases[c] + "_canvas"].getContext("2d");
 
-        if (canvasPrefix[p] !== "ui") {
-            window[canvasPrefix[p] + "_ctx"].canvas.width = mapWidth * scalingX;
-            window[canvasPrefix[p] + "_ctx"].canvas.height = mapHeight * scalingY;
-        }
-        else {
-            ui_ctx.canvas.width = window.innerWidth;
-            ui_ctx.canvas.height = window.innerHeight;
-        }
+        window[overFlowCanvases[c] + "_ctx"].canvas.width = mapWidth * scalingX;
+        window[overFlowCanvases[c] + "_ctx"].canvas.height = mapHeight * scalingY;
     }
 
+    for (var c = 0; c < fixedCanvases.length; c++) {
+        window[fixedCanvases[c] + "_canvas"] = document.getElementById(fixedCanvases[c]);
+        window[fixedCanvases[c] + "_ctx"] = window[fixedCanvases[c] + "_canvas"].getContext("2d");
+
+        window[fixedCanvases[c] + "_ctx"].canvas.width = window.innerWidth;
+        window[fixedCanvases[c] + "_ctx"].canvas.height = window.innerHeight;
+    }
+
+    /*
     window["characterCanvas"] = document.createElement("canvas");
     window["characterCtx"] = characterCanvas.getContext("2d");
 
     characterCanvas.width = 50;
     characterCanvas.height = 100;
+
+    charWidth = 50;
+    charHeight = 100;
 
     characterCtx.fillStyle = "black";
 
@@ -59,6 +59,7 @@ var canvasInit = function () {
     characterCtx.rotate(70 * Math.PI / 180);
 
     characterCtx.fill();
+    */
 }
 
 canvasInit();
@@ -69,6 +70,102 @@ var worldMap = [];
 
 var worldIndex = {};
 var currentWorld = 0;
+
+var Player = function (x, y, width, height, color, step) {
+    this.x = x;
+    this.y = y;
+
+    this.width = width;
+    this.height = height;
+
+    this.color = color;
+    this.step = step;
+
+    this.direction = null;
+    this.tileValue = null;
+}
+
+Player.prototype.move = function (obj, axis, amount) {
+    var paddingX = obj.width + obj.step * 2;
+    var paddingY = obj.height + obj.step * 2;
+
+    char_ctx.clearRect(obj.x - obj.step, obj.y - obj.step, paddingX, paddingY);
+
+    if (obj.x < 0) {
+        loadWorld("left");
+    }
+    else if (obj.y < 0) {
+        loadWorld("up");
+    }
+    else if (obj.x > mapWidth * scalingX - obj.width) {
+        loadWorld("right");
+    }
+    else if (obj.y > mapHeight * scalingY - obj.height) {
+        loadWorld("down");
+    }
+
+    var regionX = Math.floor(obj.x / obj.step / regionSizeX);
+    var regionY = Math.floor(obj.y / obj.step / regionSizeY);
+
+    obj.region = regionMap[regionX][regionY];
+    obj.tileValue = window["region_" + obj.region][obj.x / obj.step - regionX * regionSizeX][obj.y / obj.step - regionY * regionSizeY];
+
+    obj.tileValue = Math.floor(obj.tileValue * 100) / 100;
+
+    if (obj.tileValue >= 0.66 && typeof axis !== "undefined") {
+        player[axis] -= amount;
+    }
+
+    else {
+        while (obj.x - (window.innerWidth / 2 + scrollOffsets()[0]) >= obj.step && scrollOffsets()[0] < (mapWidth * scalingX) - window.innerWidth) {
+            window.scrollBy(obj.step, 0);
+        }
+        while (obj.x - (window.innerWidth / 2 + scrollOffsets()[0]) <= -1 * obj.step && scrollOffsets()[0] !== 0) {
+            window.scrollBy(-1 * obj.step, 0);
+        }
+        while (obj.y - (window.innerHeight / 2 + scrollOffsets()[1]) >= obj.step && scrollOffsets()[1] < (mapHeight * scalingY) - window.innerHeight) {
+            window.scrollBy(0, obj.step);
+        }
+        while (obj.y - (window.innerHeight / 2 + scrollOffsets()[1]) <= -1 * obj.step && scrollOffsets()[1] !== 0) {
+            window.scrollBy(0, -1 * obj.step);
+        }
+    }
+
+    char_ctx.fillStyle = obj.color;
+    char_ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+}
+
+var Mob = function (id, width, height, color) {
+    this.id = id;
+
+    this.x = Math.floor(window.innerWidth * scalingX * Math.random() / 10) * 10;
+    this.y = Math.floor(window.innerHeight * scalingY * Math.random() / 10) * 10;
+
+    this.width = width;
+    this.height = height;
+
+    this.color = color;
+
+    this.isDead = false;
+
+    mobs.push(this);
+
+    entity_ctx.fillStyle = this.color;
+    entity_ctx.fillRect(this.x, this.y, this.width, this.height);
+}
+
+Mob.prototype.move = function () {
+    entity_ctx.clearRect(this.x, this.y, this.width, this.height);
+
+    if ((Math.random() > 0.5) ? true : false) {
+        this.x += 10 * ((Math.random() > 0.5) ? -1 : 1);
+    }
+    else {
+        this.y += 10 * ((Math.random() > 0.5) ? -1 : 1);
+    }
+
+    entity_ctx.fillRect(this.x, this.y, this.width, this.height);
+}
 
 Object.size = function (obj) {
     var size = 0, key;
@@ -163,9 +260,11 @@ var init = function () {
 
     loadMap(worldIndex[1]);
 
+    window.scroll(0, 0);
+
     eventListeners();
-    drawChar();
-    drawMobs();
+    window["player"] = new Player(500, 200, 10, 10, "blue", 10);
+    player.move(player, "x", 0);
 }
 
 var loadWorld = function (dir) {
@@ -181,7 +280,7 @@ var loadWorld = function (dir) {
     }
 
     if (dir === "left") {
-        charX = mapWidth * scalingX - charStep * 2;
+        player.x = mapWidth * scalingX - player.width;
 
         if (worldMap[prevMapRow].indexOf(currentWorld) === 0) {
             worldMap[prevMapRow].unshift(newIndex);
@@ -216,7 +315,7 @@ var loadWorld = function (dir) {
     }
 
     else if (dir === "right") {
-        charX = charStep * 2;
+        player.x = 0;
 
         if (prevMapCol === worldMap[prevMapRow].length - 1) {
             worldMap[prevMapRow].push(newIndex);
@@ -245,7 +344,7 @@ var loadWorld = function (dir) {
     }
 
     else if (dir === "up") {
-        charY = mapHeight * scalingY - charStep * 2;
+        player.y = mapHeight * scalingY - player.height;
 
         if (worldMap.indexOf(worldMap[prevMapRow]) === 0) {
             var lengthBefore = prevMapCol;
@@ -279,7 +378,7 @@ var loadWorld = function (dir) {
     }
 
     else if (dir === "down") {
-        charY = charStep * 2;
+        player.y = 0;
 
         if (worldMap.indexOf(worldMap[prevMapRow]) === worldMap.length - 1) {
             worldMap.push([newIndex]);
@@ -345,7 +444,6 @@ var loadMap = function (seedingValue) {
         mapIter += 1;
     }
 
-    //drawMinimap();
     drawMobs();
     updateMap();
 };
@@ -431,88 +529,25 @@ var updateMap = function () {
     }
 }
 
-var drawChar = function (axis, amount) {
-    if (charX < charStep + charWidth) {
-        loadWorld("left");
-    }
-    else if (charY < charStep + charHeight) {
-        loadWorld("up");
-    }
-    else if (charX > mapWidth * scalingX - (charStep + charWidth)) {
-        loadWorld("right");
-    }
-    else if (charY > mapHeight * scalingY - (charStep + charHeight)) {
-        loadWorld("down");
-    }
-
-    var paddingX = charWidth + charStep;
-    var paddingY = charHeight + charStep;
-
-    char_ctx.clearRect(charX - paddingX, charY - paddingY, charX + paddingX, charY + paddingY);
-
-    var regionX = Math.floor(charX / charStep / regionSizeX);
-    var regionY = Math.floor(charY / charStep / regionSizeY);
-
-    var activeRegion = regionMap[regionX][regionY];
-    var tileValue = window["region_" + activeRegion][charX / charStep - regionX * regionSizeX][charY / charStep - regionY * regionSizeY];
-
-    tileValue = Math.floor(tileValue * 100) / 100;
-
-    if (tileValue >= 0.66 && typeof axis !== "undefined") {
-        window["char" + axis.toUpperCase()] -= amount;
-    }
-
-    else {
-        while (charX - (window.innerWidth / 2 + scrollOffsets()[0]) >= charStep && scrollOffsets()[0] < (mapWidth * scalingX) - window.innerWidth) {
-            window.scrollBy(charStep, 0);
-        }
-        while (charX - (window.innerWidth / 2 + scrollOffsets()[0]) <= -charStep && scrollOffsets()[0] !== 0) {
-            window.scrollBy(-charStep, 0);
-        }
-        while (charY - (window.innerHeight / 2 + scrollOffsets()[1]) >= charStep && scrollOffsets()[1] < (mapHeight * scalingY) - window.innerHeight) {
-            window.scrollBy(0, charStep);
-        }
-        while (charY - (window.innerHeight / 2 + scrollOffsets()[1]) <= -charStep && scrollOffsets()[1] !== 0) {
-            window.scrollBy(0, -charStep);
-        }
-    }
-
-    char_ctx.fillStyle = "black";
-    char_ctx.fillRect(charX - charWidth, charY - charHeight, charWidth, charHeight);
-    //char_ctx.drawImage(characterCanvas, charX + charWidth / 2, charY + charHeight / 3);
-}
-
 var drawMobs = function () {
-    clearInterval(updateMonsters);
-
-    mobLocations = [];
-
-    for (var n = 0; n < 10; n++) {
-        mobLocations.push([Math.floor(mapWidth * scalingX * Math.random() / 10) * 10, Math.floor(mapHeight * scalingY * Math.random() / 10) * 10]);
+    for (var n = 0; n < mobAmount; n++) {
+        window["mob_" + n] = new Mob(n, 10, 10, "purple");
     }
 
-    entity_ctx.fillStyle = "purple";
-
-    for (var mob = 0; mob < mobLocations.length; mob++) {
-        entity_ctx.fillRect(mobLocations[mob][0], mobLocations[mob][1], 10, 10);
-    }
-
-    var updateMonsters = setInterval(updateMobs, 5000);
+    moveMobs();
 }
 
-var updateMobs = function () {
-    entity_ctx.clearRect(0, 0, window.innerWidth * scalingX, window.innerHeight * scalingY);
-    entity_ctx.fillStyle = "purple";
-
-    for (var mob = 0; mob < mobLocations.length; mob++) {
-        mobLocations[mob][Math.random() > 0.5 ? 0 : 1] +=  10 * (Math.random() > 0.5 ? -1 : 1);
-
-        entity_ctx.fillRect(mobLocations[mob][0], mobLocations[mob][1], 10, 10);
+var moveMobs = function () {
+    for (var mob = 0; mob < mobs.length; mob++) {
+        if (!mobs[mob].isDead) {
+            mobs[mob].move();
+        }
     }
+
+    setTimeout(moveMobs, 1000);
 }
 
-/*
-var drawMinimap = function () {
+var drawMap = function () {
     ui_ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
     var lenX = worldMap.length;
@@ -540,24 +575,75 @@ var drawMinimap = function () {
 
     ui_ctx.stroke();
 }
-*/
 
 var attack = function () {
-    console.log(direction);
+    char_ctx.fillStyle = "silver";
 
-    switch (direction) {
+    switch (player.direction) {
         case "left":
-            var attackPosX = charX;
-            var attackPosY = charY;
+            char_ctx.fillRect(player.x - player.step, player.y + player.height / 4, player.step, player.height / 2);
 
-            for (var mob = 0; mob < mobLocations.length; mob++) {
-                if (Math.abs(mobLocations[mob][0] - attackPosX) < 30 && Math.abs(attackPosY - mobLocations[mob][1]) < 30) {
-                    console.log("killed");
-                    mobLocations.splice(mob, 1);
-                    entity_ctx.clearRect(attackPosX - 5, attackPosY - 5, 10, 10);
-                    break;
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x - mobs[mob].width === mobs[mob].x) {
+                    if (player.y === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+                    }
                 }
             }
+
+            setTimeout(function () {
+                char_ctx.clearRect(player.x - player.step, player.y, player.step, player.height);
+            }, 1000);
+            break;
+        case "right":
+            char_ctx.fillRect(player.x + player.width, player.y + player.height / 4, player.step, player.height / 2);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x + player.width === mobs[mob].x) {
+                    if (player.y === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+                    }
+                }
+            }
+            setTimeout(function () {
+                char_ctx.clearRect(player.x + player.width, player.y, player.step, player.height);
+            }, 1000);
+            break;
+        case "up":
+            char_ctx.fillRect(player.x + player.width / 4, player.y - player.step, player.width / 2, player.step);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x === mobs[mob].x) {
+                    if (player.y - mobs[mob].height === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+                    }
+                }
+            }
+            setTimeout(function () {
+                char_ctx.clearRect(player.x, player.y - player.step, player.width, player.step);
+            }, 1000);
+            break;
+        case "down":
+            char_ctx.fillRect(player.x + player.width / 4, player.y + player.height, player.width / 2, player.height);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x === mobs[mob].x) {
+                    if (player.y + player.height === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+                    }
+                }
+            }
+            setTimeout(function () {
+                char_ctx.clearRect(player.x, player.y + player.height, player.width, player.height);
+            }, 1000);
             break;
     }
 }
@@ -569,35 +655,38 @@ var keyPressed = function (e) {
 
     switch (key) {
         case 37:
-            if (charX >= charStep * 2) {
-                charX -= charStep;
-                direction = "left";
-                drawChar("x", -charStep);
+            if (player.x >= 0) {
+                player.x -= player.step;
+                player.direction = "left";
+                player.move(player, "x", -1 * player.step);
             }
             break;
         case 38:
-            if (charY >= charStep * 2) {
-                charY -= charStep;
-                direction = "up";
-                drawChar("y", -charStep);
+            if (player.y >= 0) {
+                player.y -= player.step;
+                player.direction = "up";
+                player.move(player, "y", -1 * player.step);
             }
             break;
         case 39:
-            if (charX <= mapWidth * scalingX - charStep * 2) {
-                charX += charStep;
-                direction = "right";
-                drawChar("x", charStep);
+            if (player.x <= mapWidth * scalingX - player.step) {
+                player.x += player.step;
+                player.direction = "right";
+                player.move(player, "x", player.step);
             }
             break;
         case 40:
-            if (charY <= mapHeight * scalingY - charStep * 2) {
-                charY += charStep;
-                direction = "down";
-                drawChar("y", charStep);
+            if (player.y <= mapHeight * scalingY - player.step) {
+                player.y += player.step;
+                player.direction = "down";
+                player.move(player, "y", player.step);
             }
             break;
         case 32:
             attack();
+            break;
+        case 77:
+            drawMap();
             break;
     }
 }

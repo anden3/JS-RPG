@@ -15,8 +15,12 @@ canvas:not(#map) {
     background-color: transparent;
 }
 
-#ui {
+#ui, #largeMap {
     position: fixed;
+}
+
+#largeMap {
+	background-color: black;
 }
 
 ::-webkit-scrollbar {
