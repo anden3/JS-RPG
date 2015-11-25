@@ -93,6 +93,8 @@ var Player = function (x, y, width, height, step, color, health) {
 
     this.direction = null;
     this.tileValue = null;
+
+    this.score = 0;
 }
 
 Player.prototype.move = function (obj, axis, amount) {
@@ -145,7 +147,7 @@ Player.prototype.move = function (obj, axis, amount) {
     char_ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
 }
 
-Player.prototype.drawHealth = function (obj) {
+Player.prototype.drawHealth = function () {
     var ctx = ui_ctx;
 
     var spacing = 70;
@@ -156,7 +158,7 @@ Player.prototype.drawHealth = function (obj) {
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
 
-    for (var heart = 0; heart < obj.health; heart++) {
+    for (var heart = 0; heart < this.health; heart++) {
         var space = spacing * heart;
 
         ctx.beginPath();
@@ -174,6 +176,97 @@ Player.prototype.drawHealth = function (obj) {
         ctx.fill();
 
         ctx.closePath();
+    }
+}
+
+Player.prototype.drawScore = function (obj) {
+    var ctx = ui_ctx;
+
+    ctx.clearRect(window.innerWidth * 0.86, window.innerHeight * 0.05, 100, 100);
+
+    ctx.fillStyle = "black";
+    ctx.font = "20px Arial";
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+
+    ctx.fillText("Score: " + obj.score, window.innerWidth * 0.86, window.innerHeight * 0.05, 80);
+
+    ctx.closePath();
+
+    ctx.fill();
+}
+
+Player.prototype.castSpell = function (obj, isIterating, iter, x, y, VX, VY) {
+    var ctx = entity_ctx;
+
+    var projSizeX = 10;
+    var projSizeY = 10;
+
+    if (!isIterating) {
+        switch (obj.direction) {
+            case "left":
+                var x = obj.x - obj.step;
+                var y = obj.y;
+
+                var VX = -10;
+                var VY = 0;
+                break;
+            case "right":
+                var x = obj.x + obj.width;
+                var y = obj.y;
+
+                var VX = 10;
+                var VY = 0;
+                break;
+            case "up":
+                var x = obj.x;
+                var y = obj.y - obj.step;
+
+                var VX = 0;
+                var VY = -10;
+                break;
+            case "down":
+                var x = obj.x;
+                var y = obj.y + obj.height;
+
+                var VX = 0;
+                var VY = 10;
+                break;
+        }
+
+        ctx.fillStyle = "red";
+        ctx.fillRect(x, y, projSizeX, projSizeY);
+
+        setTimeout(function () {
+            player.castSpell(player, true, 10, x += VX, y += VY, VX, VY);
+        }, 200);
+    }
+    else {
+        ctx.clearRect(x - VX, y - VY, projSizeX, projSizeY);
+
+        if (iter > 0) {
+            iter -= 1;
+
+            ctx.fillStyle = "red";
+            ctx.fillRect(x, y, projSizeX, projSizeY);
+
+            setTimeout(function () {
+                player.castSpell(player, true, iter, x += VX, y += VY, VX, VY);
+            }, 200);
+        }
+    }
+
+    for (var mob = 0; mob < mobs.length; mob++) {
+        if (x === mobs[mob].x) {
+            if (y === mobs[mob].y) {
+                mobs[mob].isDead = true;
+                entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                obj.score += 1;
+                obj.drawScore(obj);
+            }
+        }
     }
 }
 
@@ -197,7 +290,9 @@ var Mob = function (id, width, height, color) {
 }
 
 Mob.prototype.move = function () {
-    entity_ctx.clearRect(this.x, this.y, this.width, this.height);
+    var ctx = entity_ctx;
+
+    ctx.clearRect(this.x, this.y, this.width, this.height);
 
     if ((Math.random() > 0.5) ? true : false) {
         this.x += 10 * ((Math.random() > 0.5) ? -1 : 1);
@@ -209,7 +304,7 @@ Mob.prototype.move = function () {
     if (this.x === player.x) {
         if (this.y === player.y) {
             player.health -= 1;
-            player.drawHealth(player);
+            player.drawHealth();
 
             var amount = 20 * ((Math.random() > 0.5) ? 1 : -1);
 
@@ -224,7 +319,8 @@ Mob.prototype.move = function () {
         }
     }
 
-    entity_ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = "purple";
+    ctx.fillRect(this.x, this.y, this.width, this.height);
 }
 
 Object.size = function (obj) {
@@ -326,6 +422,7 @@ var init = function () {
 
     window["player"] = new Player(500, 200, 10, 10, 10, "blue", 5);
     player.drawHealth(player);
+    player.drawScore(player);
     player.move(player, "x", 0);
 
     drawMobs();
@@ -648,8 +745,10 @@ var attack = function () {
                 if (player.x - mobs[mob].width === mobs[mob].x) {
                     if (player.y === mobs[mob].y) {
                         mobs[mob].isDead = true;
-
                         entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
                     }
                 }
             }
@@ -665,8 +764,10 @@ var attack = function () {
                 if (player.x + player.width === mobs[mob].x) {
                     if (player.y === mobs[mob].y) {
                         mobs[mob].isDead = true;
-
                         entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
                     }
                 }
             }
@@ -681,8 +782,10 @@ var attack = function () {
                 if (player.x === mobs[mob].x) {
                     if (player.y - mobs[mob].height === mobs[mob].y) {
                         mobs[mob].isDead = true;
-
                         entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
                     }
                 }
             }
@@ -697,8 +800,10 @@ var attack = function () {
                 if (player.x === mobs[mob].x) {
                     if (player.y + player.height === mobs[mob].y) {
                         mobs[mob].isDead = true;
-
                         entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
                     }
                 }
             }
@@ -754,8 +859,11 @@ var keyPresses = function (e) {
             largeMap_ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         }
     }
-    if (keys[32]) { //Space
+    if (keys[88]) { //X
         attack();
+    }
+    if (keys[67]) { //C
+        player.castSpell(player, false);
     }
     if (keys[77]) { //M
         drawLargeMap();
