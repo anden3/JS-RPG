@@ -20,7 +20,9 @@ canvas:not(#map) {
 }
 
 #largeMap {
-	background-color: black;
+	background-color: black!important;
+    z-index: 100;
+    display: none;
 }
 
 ::-webkit-scrollbar {

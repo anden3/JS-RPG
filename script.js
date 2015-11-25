@@ -10,6 +10,12 @@ var scalingY = 10;
 var mobAmount = 100;
 var mobs = [];
 
+var keys = {};
+
+var runModifier = 1;
+
+var mapShowing = false;
+
 var canvasInit = function () {
     var overFlowCanvases = ["map", "char", "entity", "ui", "largeMap"];
     var fixedCanvases = ["ui", "largeMap"];
@@ -71,25 +77,29 @@ var worldMap = [];
 var worldIndex = {};
 var currentWorld = 0;
 
-var Player = function (x, y, width, height, color, step) {
+var Player = function (x, y, width, height, step, color, health) {
     this.x = x;
     this.y = y;
 
     this.width = width;
     this.height = height;
 
-    this.color = color;
     this.step = step;
+
+    this.color = color;
+
+    this.health = health;
+    this.maxHealth = health;
 
     this.direction = null;
     this.tileValue = null;
 }
 
 Player.prototype.move = function (obj, axis, amount) {
-    var paddingX = obj.width + obj.step * 2;
-    var paddingY = obj.height + obj.step * 2;
+    var paddingX = obj.width + Math.abs(amount) * 2;
+    var paddingY = obj.height + Math.abs(amount) * 2;
 
-    char_ctx.clearRect(obj.x - obj.step, obj.y - obj.step, paddingX, paddingY);
+    char_ctx.clearRect(obj.x - Math.abs(amount), obj.y - Math.abs(amount), paddingX, paddingY);
 
     if (obj.x < 0) {
         loadWorld("left");
@@ -135,6 +145,38 @@ Player.prototype.move = function (obj, axis, amount) {
     char_ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
 }
 
+Player.prototype.drawHealth = function (obj) {
+    var ctx = ui_ctx;
+
+    var spacing = 70;
+
+    ctx.clearRect(0, 0, 75 + spacing * player.maxHealth, 70);
+
+    ctx.fillStyle = "red";
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 3;
+
+    for (var heart = 0; heart < obj.health; heart++) {
+        var space = spacing * heart;
+
+        ctx.beginPath();
+
+        ctx.moveTo(35 + space, 20);
+
+        ctx.bezierCurveTo(35 + space,   20,     35 + space,     12,     25 + space,     12);
+        ctx.bezierCurveTo(10 + space,   12,     10 + space,     30,     10 + space,     30);
+        ctx.bezierCurveTo(10 + space,   40,     20 + space,     51,     37 + space,     60);
+        ctx.bezierCurveTo(55 + space,   50,     65 + space,     40,     65 + space,     30);
+        ctx.bezierCurveTo(65 + space,   30,     65 + space,     12,     50 + space,     12);
+        ctx.bezierCurveTo(40 + space,   12,     35 + space,     18,     37 + space,     20);
+
+        ctx.stroke();
+        ctx.fill();
+
+        ctx.closePath();
+    }
+}
+
 var Mob = function (id, width, height, color) {
     this.id = id;
 
@@ -162,6 +204,24 @@ Mob.prototype.move = function () {
     }
     else {
         this.y += 10 * ((Math.random() > 0.5) ? -1 : 1);
+    }
+
+    if (this.x === player.x) {
+        if (this.y === player.y) {
+            player.health -= 1;
+            player.drawHealth(player);
+
+            var amount = 20 * ((Math.random() > 0.5) ? 1 : -1);
+
+            if ((Math.random() > 0.5) ? true : false) {
+                player.x += amount;
+                player.move(player, "x", amount);
+            }
+            else {
+                player.y += amount;
+                player.move(player, "y", amount);
+            }
+        }
     }
 
     entity_ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -263,8 +323,12 @@ var init = function () {
     window.scroll(0, 0);
 
     eventListeners();
-    window["player"] = new Player(500, 200, 10, 10, "blue", 10);
+
+    window["player"] = new Player(500, 200, 10, 10, 10, "blue", 5);
+    player.drawHealth(player);
     player.move(player, "x", 0);
+
+    drawMobs();
 }
 
 var loadWorld = function (dir) {
@@ -444,7 +508,6 @@ var loadMap = function (seedingValue) {
         mapIter += 1;
     }
 
-    drawMobs();
     updateMap();
 };
 
@@ -547,41 +610,39 @@ var moveMobs = function () {
     setTimeout(moveMobs, 1000);
 }
 
-var drawMap = function () {
-    ui_ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+var drawLargeMap = function () {
+    var ctx = largeMap_ctx;
+    mapShowing = true;
 
-    var lenX = worldMap.length;
-    var lenY = worldMap[0].length;
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.strokeStyle = "white";
 
-    var horz_offset = window.innerWidth * 0.885;
-    var vert_offset = window.innerHeight * 0.02;
+    for (var row = 0; row < worldMap.length; row++) {
+        var vertOffset = Math.floor(window.innerHeight / worldMap.length * row) + 50;
 
-    ui_ctx.strokeStyle = "white";
+        for (var col = 0; col < worldMap[row].length; col++) {
+            var horzOffset = Math.floor(window.innerWidth / worldMap[row].length * col) + 50;
 
-    ui_ctx.rect(horz_offset, vert_offset, window.innerWidth * 0.1, window.innerWidth * 0.1);
-
-    ui_ctx.stroke();
-
-    for (var x = 0; x < lenX; x++) {
-        for (var y = 0; y < lenY; y++) {
-            ui_ctx.rect(horz_offset, vert_offset, Math.floor(window.innerWidth * 0.1 / 4), Math.floor(window.innerWidth * 0.1 / 4));
-
-            horz_offset += Math.floor(window.innerHeight * 0.1 / lenY);
+            if (worldMap[row][col] !== 0) {
+                ctx.rect(horzOffset, vertOffset, 50, 50);
+                ctx.strokeText(worldMap[row][col], horzOffset + 20, vertOffset + 25, 30);
+            }
         }
-        vert_offset += Math.floor(window.innerWidth * 0.1 / lenX);
-
-        horz_offset = window.innerWidth * 0.885;
     }
 
-    ui_ctx.stroke();
+    ctx.stroke();
+
+    document.getElementById("largeMap").style.display = "block";
 }
 
 var attack = function () {
-    char_ctx.fillStyle = "silver";
+    var ctx = char_ctx;
+
+    ctx.fillStyle = "silver";
 
     switch (player.direction) {
         case "left":
-            char_ctx.fillRect(player.x - player.step, player.y + player.height / 4, player.step, player.height / 2);
+            ctx.fillRect(player.x - player.step, player.y + player.height / 4, player.step, player.height / 2);
 
             for (var mob = 0; mob < mobs.length; mob++) {
                 if (player.x - mobs[mob].width === mobs[mob].x) {
@@ -594,11 +655,11 @@ var attack = function () {
             }
 
             setTimeout(function () {
-                char_ctx.clearRect(player.x - player.step, player.y, player.step, player.height);
-            }, 1000);
+                ctx.clearRect(player.x - player.step, player.y, player.step, player.height);
+            }, 300);
             break;
         case "right":
-            char_ctx.fillRect(player.x + player.width, player.y + player.height / 4, player.step, player.height / 2);
+            ctx.fillRect(player.x + player.width, player.y + player.height / 4, player.step, player.height / 2);
 
             for (var mob = 0; mob < mobs.length; mob++) {
                 if (player.x + player.width === mobs[mob].x) {
@@ -610,11 +671,11 @@ var attack = function () {
                 }
             }
             setTimeout(function () {
-                char_ctx.clearRect(player.x + player.width, player.y, player.step, player.height);
-            }, 1000);
+                ctx.clearRect(player.x + player.width, player.y, player.step, player.height);
+            }, 300);
             break;
         case "up":
-            char_ctx.fillRect(player.x + player.width / 4, player.y - player.step, player.width / 2, player.step);
+            ctx.fillRect(player.x + player.width / 4, player.y - player.step, player.width / 2, player.step);
 
             for (var mob = 0; mob < mobs.length; mob++) {
                 if (player.x === mobs[mob].x) {
@@ -626,11 +687,11 @@ var attack = function () {
                 }
             }
             setTimeout(function () {
-                char_ctx.clearRect(player.x, player.y - player.step, player.width, player.step);
-            }, 1000);
+                ctx.clearRect(player.x, player.y - player.step, player.width, player.step);
+            }, 300);
             break;
         case "down":
-            char_ctx.fillRect(player.x + player.width / 4, player.y + player.height, player.width / 2, player.height);
+            ctx.fillRect(player.x + player.width / 4, player.y + player.height, player.width / 2, player.height);
 
             for (var mob = 0; mob < mobs.length; mob++) {
                 if (player.x === mobs[mob].x) {
@@ -642,59 +703,70 @@ var attack = function () {
                 }
             }
             setTimeout(function () {
-                char_ctx.clearRect(player.x, player.y + player.height, player.width, player.height);
-            }, 1000);
+                ctx.clearRect(player.x, player.y + player.height, player.width, player.height);
+            }, 300);
             break;
     }
 }
 
-var keyPressed = function (e) {
-    var key = e.keyCode;
+var keyPresses = function (e) {
+    keys[e.keyCode] = e.type === "keydown";
 
     e.preventDefault();
 
-    switch (key) {
-        case 37:
-            if (player.x >= 0) {
-                player.x -= player.step;
-                player.direction = "left";
-                player.move(player, "x", -1 * player.step);
-            }
-            break;
-        case 38:
-            if (player.y >= 0) {
-                player.y -= player.step;
-                player.direction = "up";
-                player.move(player, "y", -1 * player.step);
-            }
-            break;
-        case 39:
-            if (player.x <= mapWidth * scalingX - player.step) {
-                player.x += player.step;
-                player.direction = "right";
-                player.move(player, "x", player.step);
-            }
-            break;
-        case 40:
-            if (player.y <= mapHeight * scalingY - player.step) {
-                player.y += player.step;
-                player.direction = "down";
-                player.move(player, "y", player.step);
-            }
-            break;
-        case 32:
-            attack();
-            break;
-        case 77:
-            drawMap();
-            break;
+    if (keys[16]) { //Shift
+        runModifier = 2;
+    }
+    else {
+        runModifier = 1;
+    }
+    if (keys[37]) { //Left arrow
+        if (player.x >= 0) {
+            player.x -= player.step * runModifier;
+            player.direction = "left";
+            player.move(player, "x", -1 * player.step * runModifier);
+        }
+    }
+    if (keys[38]) { //Up arrow
+        if (player.y >= 0) {
+            player.y -= player.step * runModifier;
+            player.direction = "up";
+            player.move(player, "y", -1 * player.step * runModifier);
+        }
+    }
+    if (keys[39]) { //Right arrow
+        if (player.x <= mapWidth * scalingX - player.step * runModifier) {
+            player.x += player.step * runModifier;
+            player.direction = "right";
+            player.move(player, "x", player.step * runModifier);
+        }
+    }
+    if (keys[40]) { //Down arrow
+        if (player.y <= mapHeight * scalingY - player.step * runModifier) {
+            player.y += player.step * runModifier;
+            player.direction = "down";
+            player.move(player, "y", player.step * runModifier);
+        }
+    }
+    if (keys[27]) { //Escape
+        if (mapShowing) {
+            document.getElementById("largeMap").style.display = "none";
+            largeMap_ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        }
+    }
+    if (keys[32]) { //Space
+        attack();
+    }
+    if (keys[77]) { //M
+        drawLargeMap();
     }
 }
 
 var eventListeners = function () {
     document.addEventListener("scroll", updateMap);
 
-    document.addEventListener("keydown", keyPressed, event);
+    document.addEventListener("keydown", keyPresses, event);
+    document.addEventListener("keyup", keyPresses, event);
 
     document.addEventListener("mousewheel", function (event) { event.preventDefault() });
 }
