@@ -10,11 +10,14 @@ var scalingY = 10;
 var mobAmount = 100;
 var mobs = [];
 
+var buttons = {};
+
 var keys = {};
 
 var runModifier = 1;
 
 var mapShowing = false;
+var gameOverShowing = false;
 
 var canvasInit = function () {
     var overFlowCanvases = ["map", "char", "entity", "ui", "largeMap"];
@@ -98,10 +101,12 @@ var Player = function (x, y, width, height, step, color, health) {
 }
 
 Player.prototype.move = function (obj, axis, amount) {
+    var ctx = char_ctx;
+
     var paddingX = obj.width + Math.abs(amount) * 2;
     var paddingY = obj.height + Math.abs(amount) * 2;
 
-    char_ctx.clearRect(obj.x - Math.abs(amount), obj.y - Math.abs(amount), paddingX, paddingY);
+    ctx.clearRect(obj.x - Math.abs(amount), obj.y - Math.abs(amount), paddingX, paddingY);
 
     if (obj.x < 0) {
         loadWorld("left");
@@ -124,6 +129,26 @@ Player.prototype.move = function (obj, axis, amount) {
 
     obj.tileValue = Math.floor(obj.tileValue * 100) / 100;
 
+    for (var mob = 0; mob < mobs.length; mob++) {
+        if (obj.x === mobs[mob].x) {
+            if (obj.y === mobs[mob].y) {
+                obj.health -= 1;
+                obj.drawHealth();
+
+                var amount = 20 * ((Math.random() > 0.5) ? 1 : -1);
+
+                if ((Math.random() > 0.5) ? true : false) {
+                    obj.x += amount;
+                    obj.move(player, "x", obj);
+                }
+                else {
+                    obj.y += amount;
+                    obj.move(obj, "y", amount);
+                }
+            }
+        }
+    }
+
     if (obj.tileValue >= 0.66 && typeof axis !== "undefined") {
         player[axis] -= amount;
     }
@@ -143,52 +168,118 @@ Player.prototype.move = function (obj, axis, amount) {
         }
     }
 
-    char_ctx.fillStyle = obj.color;
-    char_ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+    ctx.beginPath();
+
+    ctx.fillStyle = obj.color;
+    ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+
+    ctx.closePath();
 }
 
 Player.prototype.drawHealth = function () {
     var ctx = ui_ctx;
 
-    var spacing = 70;
+    if (this.health > 0) {
+        var spacing = 70;
 
-    ctx.clearRect(0, 0, 75 + spacing * player.maxHealth, 70);
+        ctx.clearRect(0, 0, 75 + spacing * this.maxHealth, 70);
 
-    ctx.fillStyle = "red";
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
+        ctx.fillStyle = "red";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 3;
 
-    for (var heart = 0; heart < this.health; heart++) {
-        var space = spacing * heart;
+        for (var heart = 0; heart < this.health; heart++) {
+            var space = spacing * heart;
 
-        ctx.beginPath();
+            ctx.beginPath();
 
-        ctx.moveTo(35 + space, 20);
+            ctx.moveTo(35 + space, 20);
 
-        ctx.bezierCurveTo(35 + space,   20,     35 + space,     12,     25 + space,     12);
-        ctx.bezierCurveTo(10 + space,   12,     10 + space,     30,     10 + space,     30);
-        ctx.bezierCurveTo(10 + space,   40,     20 + space,     51,     37 + space,     60);
-        ctx.bezierCurveTo(55 + space,   50,     65 + space,     40,     65 + space,     30);
-        ctx.bezierCurveTo(65 + space,   30,     65 + space,     12,     50 + space,     12);
-        ctx.bezierCurveTo(40 + space,   12,     35 + space,     18,     37 + space,     20);
+            ctx.bezierCurveTo(35 + space,   20,     35 + space,     12,     25 + space,     12);
+            ctx.bezierCurveTo(10 + space,   12,     10 + space,     30,     10 + space,     30);
+            ctx.bezierCurveTo(10 + space,   40,     20 + space,     51,     37 + space,     60);
+            ctx.bezierCurveTo(55 + space,   50,     65 + space,     40,     65 + space,     30);
+            ctx.bezierCurveTo(65 + space,   30,     65 + space,     12,     50 + space,     12);
+            ctx.bezierCurveTo(40 + space,   12,     35 + space,     18,     37 + space,     20);
 
-        ctx.stroke();
-        ctx.fill();
+            ctx.stroke();
+            ctx.fill();
 
-        ctx.closePath();
+            ctx.closePath();
+        }
     }
+
+    else {
+        this.gameOver();
+    }
+}
+
+Player.prototype.gameOver = function () {
+    var ctx = ui_ctx;
+
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    ctx.beginPath(); //Background
+        ctx.fillStyle = "red";
+
+        ctx.canvas.style.opacity = "0.8";
+
+        ctx.rect(0, 0, window.innerWidth, window.innerHeight);
+        ctx.fill();
+    ctx.closePath();
+
+    ctx.beginPath(); //Game over
+        ctx.fillStyle = "white";
+        ctx.font = "72px Arial";
+
+        var horzOff = (window.innerWidth - ctx.measureText("GAME OVER").width) / 2;
+
+        ctx.fillText("GAME OVER", horzOff, window.innerHeight / 2 - 250);
+
+        ctx.fill();
+    ctx.closePath();
+
+    ctx.beginPath(); //Score
+        ctx.fillStyle = "white";
+        ctx.font = "48px Arial";
+
+        horzOff = (window.innerWidth - ctx.measureText("Score: " + this.score).width) / 2;
+
+        ctx.fillText("Score: " + this.score, horzOff, window.innerHeight / 2 - 200);
+
+        ctx.fill();
+    ctx.closePath();
+
+    var gameOver = new Button({
+        x: window.innerWidth / 2 - 100,
+        y: window.innerHeight / 2,
+        width: 200,
+        height: 50,
+        text: "Restart game?",
+        font: "Arial",
+        fontSize: "24px",
+        borderWidth: 3,
+        borderColor: "black",
+        fillColor: "grey",
+        textColor: "white",
+        ctx: ui_ctx
+    });
+
+    buttons["gameOver"] = gameOver;
+
+    gameOverShowing = true;
 }
 
 Player.prototype.drawScore = function (obj) {
     var ctx = ui_ctx;
 
-    ctx.clearRect(window.innerWidth * 0.86, window.innerHeight * 0.05, 100, 100);
+    ctx.clearRect(window.innerWidth * 0.8, 0, 200, 200);
+
+    ctx.beginPath();
 
     ctx.fillStyle = "black";
     ctx.font = "20px Arial";
     ctx.lineWidth = 1;
-
-    ctx.beginPath();
 
     ctx.fillText("Score: " + obj.score, window.innerWidth * 0.86, window.innerHeight * 0.05, 80);
 
@@ -235,8 +326,12 @@ Player.prototype.castSpell = function (obj, isIterating, iter, x, y, VX, VY) {
                 break;
         }
 
+        ctx.beginPath();
+
         ctx.fillStyle = "red";
         ctx.fillRect(x, y, projSizeX, projSizeY);
+
+        ctx.closePath();
 
         setTimeout(function () {
             player.castSpell(player, true, 10, x += VX, y += VY, VX, VY);
@@ -248,8 +343,12 @@ Player.prototype.castSpell = function (obj, isIterating, iter, x, y, VX, VY) {
         if (iter > 0) {
             iter -= 1;
 
+            ctx.beginPath();
+
             ctx.fillStyle = "red";
             ctx.fillRect(x, y, projSizeX, projSizeY);
+
+            ctx.closePath();
 
             setTimeout(function () {
                 player.castSpell(player, true, iter, x += VX, y += VY, VX, VY);
@@ -271,6 +370,8 @@ Player.prototype.castSpell = function (obj, isIterating, iter, x, y, VX, VY) {
 }
 
 var Mob = function (id, width, height, color) {
+    var ctx = entity_ctx;
+
     this.id = id;
 
     this.x = Math.floor(window.innerWidth * scalingX * Math.random() / 10) * 10;
@@ -285,8 +386,12 @@ var Mob = function (id, width, height, color) {
 
     mobs.push(this);
 
-    entity_ctx.fillStyle = this.color;
-    entity_ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.beginPath();
+
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    ctx.closePath();
 }
 
 Mob.prototype.move = function () {
@@ -319,8 +424,60 @@ Mob.prototype.move = function () {
         }
     }
 
+    ctx.beginPath();
+
     ctx.fillStyle = "purple";
     ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    ctx.closePath();
+}
+
+var Button = function (opt) {
+    this.x = opt.x;
+    this.y = opt.y;
+
+    this.width = opt.width;
+    this.height = opt.height;
+
+    this.text = opt.text;
+    this.font = opt.font;
+    this.fontSize = opt.fontSize;
+
+    this.borderWidth = opt.borderWidth;
+
+    this.borderColor = opt.borderColor;
+    this.fillColor = opt.fillColor;
+    this.textColor = opt.textColor;
+
+    this.ctx = opt.ctx;
+
+    this.draw();
+}
+
+Button.prototype.draw = function () {
+    var ctx = this.ctx;
+
+    ctx.beginPath();
+        ctx.fillStyle = this.fillColor;
+        ctx.strokeStyle = this.borderColor;
+        ctx.lineWidth = this.borderWidth;
+
+        ctx.rect(this.x, this.y, this.width, this.height);
+
+        ctx.fill();
+        ctx.stroke();
+    ctx.closePath();
+
+    ctx.beginPath();
+        ctx.fillStyle = this.textColor;
+        ctx.font = this.fontSize + " " + this.font;
+
+        horzOff = (window.innerWidth - ctx.measureText("Restart game?").width) / 2;
+
+        ctx.fillText(this.text, horzOff, this.y + 30);
+
+        ctx.fill();
+    ctx.closePath();
 }
 
 Object.size = function (obj) {
@@ -410,6 +567,21 @@ var normalize = function (arr, dim, high) {
 }
 
 var init = function () {
+    var canvases = document.getElementsByTagName("canvas");
+
+    for (var c = 0; c < canvases.length; c++) {
+        window[canvases[c].id + "_ctx"].clearRect(0, 0, canvases[c].width, canvases[c].height);
+    }
+
+    if (typeof mobsLoop !== "undefined") {
+        clearTimeout(mobsLoop);
+    }
+
+    map = [];
+    regionMap = [];
+    worldMap = [];
+    worldIndex = {};
+
     worldIndex[1] = Math.random();
     currentWorld = 1;
     worldMap.push([1]);
@@ -690,6 +862,8 @@ var updateMap = function () {
 }
 
 var drawMobs = function () {
+    mobs = [];
+
     for (var n = 0; n < mobAmount; n++) {
         window["mob_" + n] = new Mob(n, 10, 10, "purple");
     }
@@ -704,7 +878,7 @@ var moveMobs = function () {
         }
     }
 
-    setTimeout(moveMobs, 1000);
+    window["mobsLoop"] = setTimeout(moveMobs, 1000);
 }
 
 var drawLargeMap = function () {
@@ -870,11 +1044,28 @@ var keyPresses = function (e) {
     }
 }
 
+var clickHandler = function (e) {
+    var mouseX = event.clientX;
+    var mouseY = event.clientY;
+
+    if (gameOverShowing) {
+        var button = buttons["gameOver"];
+
+        if (Math.abs(mouseX - button.x - button.width / 2) <= button.width / 2) {
+            if (Math.abs(mouseY - button.y - button.height / 2) <= button.height / 2) {
+                init();
+            }
+        }
+    }
+}
+
 var eventListeners = function () {
     document.addEventListener("scroll", updateMap);
 
     document.addEventListener("keydown", keyPresses, event);
     document.addEventListener("keyup", keyPresses, event);
+
+    document.addEventListener("click", clickHandler, event);
 
     document.addEventListener("mousewheel", function (event) { event.preventDefault() });
 }
