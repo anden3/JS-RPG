@@ -1,3 +1,6 @@
+var mobAmount = 100;
+var mobs = [];
+
 var Mob = function (id, color) {
     var ctx = entity_ctx;
 
@@ -75,4 +78,24 @@ Mob.prototype.move = function () {
     ctx.fillRect(this.x, this.y, this.width, this.height);
 
     ctx.closePath();
+}
+
+function drawMobs() {
+    mobs = [];
+
+    for (var n = 0; n < mobAmount; n++) {
+        window["mob_" + n] = new Mob(n, "green");
+    }
+
+    moveMobs();
+}
+
+function moveMobs() {
+    for (var mob = 0; mob < mobs.length; mob++) {
+        if (!mobs[mob].isDead && !menuShowing) {
+            mobs[mob].move();
+        }
+    }
+
+    window["mobsLoop"] = setTimeout(moveMobs, 1000);
 }

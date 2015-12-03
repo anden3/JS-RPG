@@ -1,3 +1,5 @@
+var buttons = {};
+
 var Button = function (opt) {
     this.x = opt.x;
     this.y = opt.y;
@@ -6,6 +8,7 @@ var Button = function (opt) {
     this.height = opt.height;
 
     this.text = opt.text;
+    this.textX = opt.textX
     this.font = opt.font;
     this.fontSize = opt.fontSize;
 
@@ -38,9 +41,7 @@ Button.prototype.draw = function () {
         ctx.fillStyle = this.textColor;
         ctx.font = this.fontSize + " " + this.font;
 
-        horzOff = (window.innerWidth - ctx.measureText("Restart game?").width) / 2;
-
-        ctx.fillText(this.text, horzOff, this.y + 30);
+        ctx.fillText(this.text, this.textX, this.y + 30);
 
         ctx.fill();
     ctx.closePath();

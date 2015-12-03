@@ -1,3 +1,6 @@
+var runModifier = 1;
+var hasMoved = false;
+
 var Player = function (x, y, width, height, step, color, health) {
     this.x = x;
     this.y = y;
@@ -142,7 +145,7 @@ Player.prototype.drawHealth = function () {
 }
 
 Player.prototype.gameOver = function () {
-    var ctx = ui_ctx;
+    var ctx = menu_ctx;
 
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
@@ -178,18 +181,19 @@ Player.prototype.gameOver = function () {
     ctx.closePath();
 
     var gameOver = new Button({
-        x: window.innerWidth / 2 - 100,
+        x: window.innerWidth / 2 - window.innerWidth * 0.105,
         y: window.innerHeight / 2,
         width: 200,
         height: 50,
         text: "Restart game?",
+        textX: window.innerWidth / 2 - window.innerWidth * 0.0835,
         font: "Arial",
         fontSize: "24px",
         borderWidth: 3,
         borderColor: "black",
         fillColor: "grey",
         textColor: "white",
-        ctx: ui_ctx
+        ctx: ctx
     });
 
     buttons["gameOver"] = gameOver;
@@ -200,7 +204,7 @@ Player.prototype.gameOver = function () {
 Player.prototype.drawScore = function (obj) {
     var ctx = ui_ctx;
 
-    ctx.clearRect(window.innerWidth * 0.8, 0, 200, 200);
+    ctx.clearRect(window.innerWidth * 0.8, 0, 400, 200);
 
     ctx.beginPath();
 
@@ -208,7 +212,7 @@ Player.prototype.drawScore = function (obj) {
     ctx.font = "20px Arial";
     ctx.lineWidth = 1;
 
-    ctx.fillText("Score: " + obj.score, window.innerWidth * 0.86, window.innerHeight * 0.05, 80);
+    ctx.fillText("Score: " + obj.score, window.innerWidth * 0.9, window.innerHeight * 0.05, 80);
 
     ctx.closePath();
 
@@ -297,5 +301,91 @@ Player.prototype.castSpell = function (obj, isIterating, iter, x, y, VX, VY) {
                 }
             }
         }
+    }
+}
+
+function attack() {
+    var ctx = char_ctx;
+
+    ctx.fillStyle = "silver";
+
+    switch (player.direction) {
+        case "left":
+            ctx.fillRect(player.x - player.step, player.y + player.height / 4, player.step, player.height / 2);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x - mobs[mob].width === mobs[mob].x) {
+                    if (player.y === mobs[mob].y) {
+                        mobs[mob].hp -= 1;
+
+                        if (mobs[mob].hp < 1) {
+                            mobs[mob].isDead = true;
+                            entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                            player.score += 1;
+                            player.drawScore(player);
+                        }
+                    }
+                }
+            }
+
+            setTimeout(function () {
+                ctx.clearRect(player.x - player.step, player.y, player.step, player.height);
+            }, 300);
+            break;
+        case "right":
+            ctx.fillRect(player.x + player.width, player.y + player.height / 4, player.step, player.height / 2);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x + player.width === mobs[mob].x) {
+                    if (player.y === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
+                    }
+                }
+            }
+            setTimeout(function () {
+                ctx.clearRect(player.x + player.width, player.y, player.step, player.height);
+            }, 300);
+            break;
+        case "up":
+            ctx.fillRect(player.x + player.width / 4, player.y - player.step, player.width / 2, player.step);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x === mobs[mob].x) {
+                    if (player.y - mobs[mob].height === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
+                    }
+                }
+            }
+            setTimeout(function () {
+                ctx.clearRect(player.x, player.y - player.step, player.width, player.step);
+            }, 300);
+            break;
+        case "down":
+            ctx.fillRect(player.x + player.width / 4, player.y + player.height, player.width / 2, player.height);
+
+            for (var mob = 0; mob < mobs.length; mob++) {
+                if (player.x === mobs[mob].x) {
+                    if (player.y + player.height === mobs[mob].y) {
+                        mobs[mob].isDead = true;
+                        entity_ctx.clearRect(mobs[mob].x, mobs[mob].y, mobs[mob].width, mobs[mob].height);
+
+                        player.score += 1;
+                        player.drawScore(player);
+                    }
+                }
+            }
+            setTimeout(function () {
+                ctx.clearRect(player.x, player.y + player.height, player.width, player.height);
+            }, 300);
+            break;
     }
 }

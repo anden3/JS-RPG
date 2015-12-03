@@ -3,7 +3,8 @@
         <meta charset="utf-8">
         <link type="text/css" rel="stylesheet" href="stylesheet.css">
         <script type="text/javascript" src="perlin.js"></script>
-
+        
+        <script type="text/javascript" src="World.js"></script>
         <script type="text/javascript" src="Player.js"></script>
         <script type="text/javascript" src="Mob.js"></script>
         <script type="text/javascript" src="Button.js"></script>
@@ -11,10 +12,11 @@
         <script type="text/javascript" src="script.js" defer></script>
     </head>
     <body>
-        <canvas id="map"></canvas>
-        <canvas id="char"></canvas>
-        <canvas id="entity"></canvas>
-        <canvas id="ui"></canvas>
-        <canvas id="largeMap"></canvas>
+        <canvas id="map" class="overflow"></canvas>
+        <canvas id="char" class="overflow"></canvas>
+        <canvas id="entity" class="overflow"></canvas>
+        <canvas id="ui" class="fixed"></canvas>
+        <canvas id="menu" class="fixed"></canvas>
+        <canvas id="largeMap" class="fixed"></canvas>
     </body>
 </html>

@@ -11,12 +11,12 @@ canvas {
     overflow: scroll;
 }
 
-canvas:not(#map) {
-    background-color: transparent;
+.fixed {
+    position: fixed;
 }
 
-#ui, #largeMap {
-    position: fixed;
+canvas:not(#map) {
+    background-color: transparent;
 }
 
 #largeMap {
